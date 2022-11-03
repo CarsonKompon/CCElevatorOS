@@ -1,26 +1,28 @@
 peripheral.find("modem", rednet.open)
-
-monitorName = "monitor_9"
+ 
+-- Modify these based on your floor and monitor name
+monitorName = "monitor_0"
 floor = 1
-
+ 
 monitor = peripheral.wrap(monitorName)
-
+ 
+CURRENT_FLOOR = 1
 IS_MOVING = false
 local redstoneSide = "front"
 local redstoneTimer = os.startTimer(0.25)
-
+ 
 term.clear()
-print("ElevatorOS Floor Monitor v1.4")
-
+print("ElevatorOS Floor Monitor v1.5")
+ 
 function getTimestamp()
  return "[" .. textutils.formatTime(os.time()) .. "]"
 end
-
+ 
 function term.writeTo(_x, _y, _text)
  term.setCursorPos(_x, _y)
  term.write(_text)
 end
-
+ 
 function executeRedstone(_id)
  print(getTimestamp() .. " Outputting Redstone ID " .. _id)
  if _id == 1 then redstoneSide = "front"
@@ -32,7 +34,7 @@ function executeRedstone(_id)
  rs.setOutput(redstoneSide, true)
  redstoneTimer = os.startTimer(0.25)
 end
-
+ 
 function touch(_x, _y)
  local floorId = 0
  -- Floor 1
@@ -66,7 +68,7 @@ function touch(_x, _y)
   executeRedstone(floorId)
  end
 end
-
+ 
 function drawButtons()
  lastTerm = term.current()
  term.redirect(monitor)
@@ -75,7 +77,7 @@ function drawButtons()
  
  local col = colors.lightBlue
  local grey = colors.lightGray
- if IS_MOVING then col = grey end
+ if IS_MOVING or CURRENT_FLOOR ~= floor then col = grey end
  
  term.setTextColor(colors.black)
  
@@ -100,20 +102,22 @@ function drawButtons()
    
  term.redirect(lastTerm)
 end
-
+ 
 drawButtons()
-
+ 
 while true do
  event = { os.pullEvent() }
- if event[1] == "monitor_touch" and not IS_MOVING then
+ if event[1] == "monitor_touch" and not IS_MOVING and CURRENT_FLOOR == floor then
   touch(event[3], event[4])
  elseif event[1] == "timer" then
   if event[2] == redstoneTimer then
    rs.setOutput(redstoneSide, false)
   end
  elseif event[1] == "rednet_message" then
-  if event[3] == "elevator_stop" then
-   print(getTimestamp() .. " Elevator Stopped (" .. event[2] .. ")")
+  if event[3]:find("elevator_stop") then
+   message, data = event[3]:match("([^,]+),([^,]+)")
+   print(getTimestamp() .. " Elevator Stopped @ Floor " .. data .. " (" .. event[2] .. ")")
+   CURRENT_FLOOR = tonumber(data)
    IS_MOVING = false
    drawButtons()
   elseif event[3] == "elevator_start" then
